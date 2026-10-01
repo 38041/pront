@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardware Hub — Mini Sistema de Gerenciamento de Hardware</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Cabeçalho Principal -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <div class="brand">
+        <div class="logo-icon">💻</div>
+        <div class="brand-text">
+          <h1>Hardware<span>Hub</span></h1>
+          <p class="subtitle">Mini Sistema de Gerenciamento de Aparelhos</p>
+        </div>
+      </div>
+
+      <div class="api-status-wrapper">
+        <span class="status-indicator" id="apiStatusDot"></span>
+        <span class="status-text" id="apiStatusText">Verificando API...</span>
+        <button id="btnConfigApi" class="btn-icon" title="Configurar URL da API" aria-label="Configurar API">
+          ⚙️
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Modal de Configuração da API -->
+  <div id="modalApiConfig" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Configuração do Endpoint da API</h3>
+        <button id="btnCloseModalApi" class="btn-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Altere a URL base da API REST conforme o seu ambiente (local ou Vercel):</p>
+        <div class="form-group">
+          <label for="inputApiUrl">URL Base da API (/api/hardware):</label>
+          <input type="url" id="inputApiUrl" placeholder="http://localhost:3000/api/hardware" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnResetApiUrl" class="btn btn-secondary">Restaurar Padrão</button>
+        <button id="btnSaveApiUrl" class="btn btn-primary">Salvar e Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação de Exclusão -->
+  <div id="modalConfirmDelete" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3 class="text-danger">Excluir Aparelho</h3>
+        <button id="btnCloseModalDelete" class="btn-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza de que deseja excluir o aparelho <strong id="deleteHardwareName">...</strong>?</p>
+        <p class="text-muted small">Esta ação não poderá ser desfeita no banco de dados.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelDelete" class="btn btn-secondary">Cancelar</button>
+        <button id="btnConfirmDelete" class="btn btn-danger">Sim, Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificações Toast -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Conteúdo Principal -->
+  <main class="container main-content">
+    
+    <!-- Painel Lateral: Formulário de Cadastro e Edição -->
+    <section class="form-section">
+      <div class="card form-card">
+        <div class="card-header">
+          <h2 id="formTitle">Cadastrar Novo Aparelho</h2>
+          <p class="text-muted" id="formSubtitle">Preencha os dados do hardware para adicionar ao catálogo.</p>
+        </div>
+
+        <form id="hardwareForm" novalidate>
+          <input type="hidden" id="hardwareId" value="" />
+
+          <div class="form-group">
+            <label for="hardwareInput">Nome / Tipo do Hardware <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="hardwareInput" 
+              placeholder="Ex: Placa de Vídeo, Notebook Gamer, Monitor" 
+              required 
+            />
+            <span class="field-error" id="errorHardware"></span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col">
+              <label for="marcaInput">Marca / Fabricante <span class="required">*</span></label>
+              <input 
+                type="text" 
+                id="marcaInput" 
+                placeholder="Ex: Asus, Dell, Logitech" 
+                required 
+              />
+              <span class="field-error" id="errorMarca"></span>
+            </div>
+
+            <div class="form-group col">
+              <label for="modeloInput">Modelo <span class="required">*</span></label>
+              <input 
+                type="text" 
+                id="modeloInput" 
+                placeholder="Ex: ROG Strix, G15, G502" 
+                required 
+              />
+              <span class="field-error" id="errorModelo"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="precoInput">Preço (R$) <span class="required">*</span></label>
+            <div class="input-prefix-wrapper">
+              <span class="input-prefix">R$</span>
+              <input 
+                type="number" 
+                id="precoInput" 
+                placeholder="0,00" 
+                step="0.01" 
+                min="0" 
+                required 
+              />
+            </div>
+            <span class="field-error" id="errorPreco"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="fotoInput">URL da Foto / Imagem (opcional)</label>
+            <input 
+              type="url" 
+              id="fotoInput" 
+              placeholder="Ex: https://exemplo.com/imagem.jpg" 
+            />
+            <span class="field-error" id="errorFoto"></span>
+            <small class="text-muted">Insira o link de uma imagem online pública ou deixe em branco para placeholder.</small>
+          </div>
+
+          <!-- Prévia da Foto ao Digitar -->
+          <div id="fotoPreviewContainer" class="foto-preview-container hidden">
+            <span class="preview-label">Prévia da imagem:</span>
+            <img id="fotoPreviewImg" src="" alt="Prévia do aparelho" />
+          </div>
+
+          <!-- Botões do Formulário -->
+          <div class="form-actions">
+            <button type="submit" id="btnSubmitForm" class="btn btn-primary">
+              <span class="btn-text">Salvar Aparelho</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
+            <button type="button" id="btnCancelEdit" class="btn btn-secondary hidden">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Painel de Listagem e Catálogo -->
+    <section class="list-section">
+      <!-- Barra de Controle (Busca, Filtro e Contador) -->
+      <div class="controls-bar card">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Buscar por nome, marca ou modelo..." 
+            aria-label="Buscar hardware"
+          />
+          <button id="btnClearSearch" class="btn-clear hidden" title="Limpar busca">&times;</button>
+        </div>
+
+        <div class="list-meta">
+          <span class="badge" id="hardwareCountBadge">0 aparelhos</span>
+          <button id="btnRefreshList" class="btn btn-icon-text" title="Recarregar catálogo">
+            🔄 <span>Atualizar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Estado de Carregamento (Loading) -->
+      <div id="loadingState" class="state-container hidden">
+        <div class="spinner"></div>
+        <p>Carregando aparelhos...</p>
+      </div>
+
+      <!-- Estado de Erro -->
+      <div id="errorState" class="state-container state-error hidden">
+        <div class="state-icon">⚠️</div>
+        <h3>Não foi possível carregar os dados</h3>
+        <p id="errorMessageText">Verifique se o backend está em execução e conectado ao MongoDB.</p>
+        <button id="btnRetryFetch" class="btn btn-primary">Tentar Novamente</button>
+      </div>
+
+      <!-- Estado Vazio (Nenhum aparelho cadastrado) -->
+      <div id="emptyState" class="state-container hidden">
+        <div class="state-icon">📦</div>
+        <h3>Nenhum aparelho encontrado</h3>
+        <p id="emptyStateText">Cadastre seu primeiro hardware utilizando o formulário ao lado.</p>
+      </div>
+
+      <!-- Grid de Aparelhos Cadastrados -->
+      <div id="hardwareGrid" class="hardware-grid"></div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-container">
+      <p>Mini Sistema de Gerenciamento de Hardware &copy; 2026</p>
+      <p class="text-muted">Node.js &bull; Express &bull; MongoDB &bull; Vercel &bull; HTML/CSS/JS</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
